@@ -2335,6 +2335,9 @@ Number. Default 10. The maximum velocity for each child.
 /**###Interface.XY.detectCollisions : property
 Boolean. Default true. When true, children bounce off one another.
 **/
+/**###Interface.XY.childIds : property
+Array. An array of labels for the children. If given will replace the default number labels.
+**/
 /**###Interface.XY.values : property
 Array. An array of objects taking the form {x,y} that store the x and y positions of every child. So, to get the x position of child #0: myXY.values[0].x
 **/
