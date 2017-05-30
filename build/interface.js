@@ -2336,6 +2336,9 @@ Number. Default 10. The maximum velocity for each child.
 /**###Interface.XY.detectCollisions : property
 Boolean. Default true. When true, children bounce off one another.
 **/
+/**###Interface.XY.childIds : property
+Array. An array of labels for the children. If given will replace the default number labels.
+**/
 /**###Interface.XY.values : property
 Array. An array of objects taking the form {x,y} that store the x and y positions of every child. So, to get the x position of child #0: myXY.values[0].x
 **/
@@ -2356,7 +2359,7 @@ Interface.XY = function() {
   Interface.extend(this, {
     type : 'XY',
     _value            : 0,
-    serializeMe       : ["childWidth", "childHeight", "numChildren", "usePhysics", "values", "friction", "maxVelocity", "detectCollisions", "fps", "childIds"],
+    serializeMe       : ["childWidth", "childHeight", "numChildren", "usePhysics", "values", "friction", "maxVelocity", "detectCollisions", "fps", "childIds", "shapes"],
     childWidth        : 25,
     childHeight       : 25,
     children          : [],
@@ -2558,22 +2561,69 @@ Interface.XY = function() {
 
       for(var i = 0; i < this.children.length; i++) {
         var child = this.children[i];
-        this.ctx.lineWidth = 2
+        this.ctx.lineWidth = 2;
         this.ctx.fillStyle = child.fill || this._fill();
 
         this.ctx.beginPath();
+        var w = this.childWidth;
+        switch(child.shape) {
+        case 'circle' :
+          this.ctx.arc(x + child.x, y + child.y, this.childWidth, 0, Math.PI*2, true);
+          break;
+        case 'square' :
+          this.ctx.lineTo(x + child.x - w, y + child.y - w);
+          this.ctx.lineTo(x + child.x + w, y + child.y - w);
+          this.ctx.lineTo(x + child.x + w, y + child.y + w);
+          this.ctx.lineTo(x + child.x - w, y + child.y + w);
+          this.ctx.fill();
 
-        this.ctx.arc(x + child.x, y + child.y, this.childWidth, 0, Math.PI*2, true);
+          break;
+        case 'triangle':
+          this.ctx.lineTo(x + child.x, y + child.y - (1.33 * w));
+          this.ctx.lineTo(x + child.x + w, y + child.y + (0.67 * w));
+          this.ctx.lineTo(x + child.x - w, y + child.y + (0.67 * w));
+          this.ctx.fill();
+          break;
+
+        case 'star' :
+          var spikes = 5;
+          var outerRadius = this.childWidth;
+          var innerRadius = this.childWidth / 5 * 2;
+          var cx = x + child.x;
+          var cy = y + child.y;
+          var mx = cx,
+              my = cy;
+          var rot = Math.PI / 2 * 3;
+          var step = Math.PI / spikes;
+
+          this.ctx.beginPath();
+          this.ctx.moveTo(cx, cy-outerRadius);
+          for(i=0;i<spikes;i++){
+            mx = cx + Math.cos(rot)*outerRadius;
+            my = cy + Math.sin(rot)*outerRadius;
+            this.ctx.lineTo(mx, my);
+            rot+=step;
+
+            mx = cx + Math.cos(rot)*innerRadius;
+            my = cy + Math.sin(rot)*innerRadius;
+            this.ctx.lineTo(mx, my);
+            rot += step;
+          }
+          this.ctx.lineTo(cx, cy-outerRadius);
+          this.ctx.closePath();
+          break;
+        default:
+          this.ctx.arc(x + child.x, y + child.y, this.childWidth, 0, Math.PI*2, true);
+        }
 
         this.ctx.closePath();
 
         this.ctx.fill();
         this.ctx.stroke();
-        //this.ctx.fillRect( this.x + child.x, this.y + child.y, this.childWidth, this.childHeight);
         this.ctx.textBaseline = 'middle';
         this.ctx.textAlign = 'center';
         this.ctx.fillStyle = this._stroke();
-        this.ctx.font = this._font();
+        this.ctx.font = 'bold 24px Helvetica';
         this.ctx.fillText(child.name, x + child.x, y + child.y);
       }
 
@@ -2602,15 +2652,23 @@ Interface.XY = function() {
       }
     },
 
-    // pass an (optional) array of ids to use instead of the
-    // sequential automatic numbering
-    makeChildren : function(ids) {
+    // pass two (optional) arrays of ids to use instead of the
+    // sequential automatic numbering and shapes ('circle', 'square',
+    // 'triangle', 'star'
+    makeChildren : function(ids, shapes) {
       for(var i = 0; i < this.numChildren; i++) {
         var x = Math.random() * this._width(),
             y = Math.random() * this._height(),
-            id = ids[i] || i;
-
-        this.children.push({ id:i, name:id, x:x, y:y, vx:0, vy:0, collideFlag:false, isActive:false, lastPosition:null, });
+            id = ids[i] || i,
+            shape = shapes[i] || 'circle';
+        this.children.push({ id:i,
+                             name:id,
+                             shape: shape,
+                             x:x, y:y,
+                             vx:0, vy:0,
+                             collideFlag:false,
+                             isActive:false,
+                             lastPosition:null, });
         this.values.push({ x:null, y:null });
       }
     },
@@ -2781,7 +2839,7 @@ Interface.XY = function() {
     },
 
     _init : function() {
-      this.makeChildren(this.childIds);
+      this.makeChildren(this.childIds, this.shapes);
       if( this.outputInitialValues ) {
         this.sendTargetMessage();
       }
@@ -2798,7 +2856,13 @@ Interface.XY = function() {
     set : function(_numChildren) {
       var temp = _numChildren;
       while(_numChildren > numChildren) {
-        this.children.push({ id:this.children.length, x:Math.random() * this._width(), y:Math.random() * this._height(), vx:0, vy:0, collideFlag:false, isActive:false, lastPosition:null, });
+        this.children.push({ id:this.children.length,
+                             x:Math.random() * this._width(),
+                             y:Math.random() * this._height(),
+                             vx:0, vy:0,
+                             collideFlag:false,
+                             isActive:false,
+                             lastPosition:null, });
         this.values.push({ x:null, y: null});
         numChildren++;
       }
